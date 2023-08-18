@@ -4,12 +4,14 @@ import { fetchCount } from "./counterAPI"
 
 export interface CounterState {
   value: number
-  status: "idle" | "loading" | "failed"
+  status: "idle" | "loading" | "failed",
+  byId: Object
 }
 
 const initialState: CounterState = {
   value: 0,
   status: "idle",
+  byId: {}
 }
 
 // The function below is called a thunk and allows us to perform async logic. It
@@ -25,6 +27,27 @@ export const incrementAsync = createAsyncThunk(
     return response.data
   },
 )
+
+export const fetchTaskActivities = createAsyncThunk('counter/fetchActivities', async (arg, thunkAPI) => {},
+  { getPendingMeta({ arg, requestId }, { getState, extra }){
+    return {
+   
+    offline: {
+        effect: { url: 'http://httpstat.us/500', method: 'POST', 
+        body: JSON.stringify({
+          title: 'foo',
+          body: 'bar',
+          userId: 1,
+        }),
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        }, },
+        // action to dispatch when effect succeeds:
+        commit: { type: 'FETCH_ACTIVITIES_COMMIT', meta: { requestId } },
+        // action to dispatch if network action fails permanently:
+        rollback: { type: 'FETCH_ACTIVITIES_ROLLBACK', meta: { requestId } }
+    }
+  }}})
 
 export const counterSlice = createSlice({
   name: "counter",
@@ -43,16 +66,7 @@ export const counterSlice = createSlice({
         reducer: (state, action: PayloadAction<number>) =>  {state.value += action.payload} ,
         prepare: (value?: number) => {
           return {
-            payload: value || 2,
-            meta: {
-              offline: {
-                effect: { url: 'https://jsonplaceholder.typicode.com/posts', method: 'GET'},
-                // action to dispatch when effect succeeds:
-                 commit: { type: 'REGISTER_USER_COMMIT', meta: {value } },
-                // action to dispatch if network action fails permanently:
-                rollback: { type: 'REGISTER_USER_ROLLBACK', meta: { value } }
-              }
-            }
+            payload: value || 2
           }
         } 
       }
@@ -72,6 +86,17 @@ export const counterSlice = createSlice({
       .addCase(incrementAsync.rejected, (state) => {
         state.status = "failed"
       })
+      .addCase(fetchTaskActivities.pending, (state, action) => {
+        state.status = 'loading'
+    }).addCase('FETCH_ACTIVITIES_COMMIT', (state, action) => {
+        // action.payload.forEach(activity => state.byId[activity.id] = activity)
+        console.log('action ', action)
+        state.byId = {}
+       
+    }).addCase('FETCH_ACTIVITIES_ROLLBACK', (state, action) => {
+        state.byId = {}
+        state.status = 'failed'
+    })
   },
 })
 
@@ -92,5 +117,4 @@ export const incrementIfOdd =
       dispatch(incrementByAmount(amount))
     }
   }
-
 export default counterSlice.reducer
